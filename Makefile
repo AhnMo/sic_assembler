@@ -4,7 +4,8 @@ CFLAGS:=
 
 OBJS:=main.o \
 pass1.o \
-pass2.o
+pass2.o \
+hash.o
 
 TARGET:=sic_asm.out
 

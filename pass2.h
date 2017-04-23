@@ -1,6 +1,6 @@
-#ifndef __PASS2__
+#ifndef __PASS2_H__
 
-#define __PASS2__
+#define __PASS2_H__
 
 #include <stdio.h>
 #include <string.h>
