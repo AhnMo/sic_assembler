@@ -137,7 +137,7 @@ int parse_line(char *str, struct statement_t *sta) {
 void hex_to_int(char *h, int *i) { sscanf (h, "%x",  i); }
 void int_to_hex(int *i, char *h) { sprintf(h, "%x", *i); }
 
-void pass1(char *src_filename, char *intermediate_filename) {
+void pass1(char *src_filename, char *intermediate_filename, char *symbol_filename) {
 	FILE *src_fp, *intermediate_fp;
 	char buff[BUFSIZ];
 	int start_addr, LOCCTR;

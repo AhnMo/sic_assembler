@@ -23,6 +23,6 @@ struct statement_t {
 	char objcode[16];
 };
 
-void pass1(char *src_filename, char *intermediate_filename);
+void pass1(char *src_filename, char *intermediate_filename, char *symbol_filename);
 
 #endif

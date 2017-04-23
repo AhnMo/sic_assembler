@@ -3,6 +3,7 @@
 #include "pass2.h"
 
 #define FILENAME_INTERMEDIATE	"intermediate.txt"
+#define FILENAME_SYMBOL			"symbol.txt"
 #define FILENAME_LISTING		"listing.txt"
 
 int main(int argc, char *argv[]) {
@@ -10,7 +11,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Usage: %s [source filename] [output filename]\n", argv[0]);
 		exit(0);
 	}
-	pass1(argv[1], FILENAME_INTERMEDIATE);
-	pass2(FILENAME_INTERMEDIATE, FILENAME_LISTING, argv[2]);
+	pass1(argv[1], FILENAME_INTERMEDIATE, FILENAME_SYMBOL);
+	pass2(FILENAME_INTERMEDIATE, FILENAME_SYMBOL, FILENAME_LISTING, argv[2]);
 	return 0;
 }
