@@ -1,83 +1,98 @@
-#include <stdio.h>
-#include <string.h>
+#include "pass2.h"
 
-/*
-struct opcode_t {
-	char *op;
-	int format;
-	char *code;
-	int n_o; // the number of operand
-	char *n_f; // the format of operand
-};
-*/
-struct opcode_t {
-	char *op;
-	int n_o; // the number of operand
-	int format;
-	char *code;
-	char *n_f; // the format of operand
+struct statement_t {
+	char loc[8];
+	char symbol[8];
+	char opcode[8];
+	char operand[16];
+	char objcode[16];
 };
 
-struct opcode_t optbl[] = {
-	{"add",		1, 3, "18", "m"},
-	{"addr",	2, 2, "90", "rr"},
-	{"clear",	1, 2, "b4", "r"},
-	{"comp",	1, 3, "28", "m"},
-	{"compr",	2, 2, "a0", "rr"},
-	{"div",		1, 3, "24", "m"},
-	{"divr",	2, 2, "9c", "rr"},
-	{"j",		1, 3, "3c", "m"},
-	{"jeq",		1, 3, "30", "m"},
-	{"jgt",		1, 3, "34", "m"},
-	{"jlt",		1, 3, "38", "m"},
-	{"jsub",	1, 3, "48", "m"},
-	{"lda",		1, 3, "00", "m"},
-	{"ldb",		1, 3, "68", "m"},
-	{"ldch",	1, 3, "50", "m"},
-	{"ldl",		1, 3, "08", "m"},
-	{"lds",		1, 3, "6c", "m"},
-	{"ldt",		1, 3, "74", "m"},
-	{"ldx",		1, 3, "04", "m"},
-	{"mul",		1, 3, "20", "m"},
-	{"mulr",	2, 2, "98", "rr"},
-	{"rd",		1, 3, "d8", "m"},
-	{"rmo",		2, 2, "ac", "rr"},
-	{"rsub", 	0, 3, "4c", NULL},
-	{"shiftl",	2, 2, "a4", "rn"},
-	{"shiftr",	2, 2, "a8", "rn"},
-	{"sta",		1, 3, "0c", "m"},
-	{"stb",		1, 3, "78", "m"},
-	{"stch",	1, 3, "54", "m"},
-	{"stl",		1, 3, "14", "m"},
-	{"sts",		1, 3, "7c", "m"},
-	{"stt",		1, 3, "84", "m"},
-	{"stx",		1, 3, "10", "m"},
-	{"sub",		1, 3, "1c", "m"},
-	{"subr",	2, 2, "94", "rr"},
-	{"td",		1, 3, "e0", "m"},
-	{"tix",		1, 3, "2c", "m"},
-	{"tixr",	1, 2, "b8", "r"},
-	{"wd",		1, 3, "dc", "m"}
-};
-
-int is_opcode(char *target) {
+int is_opcode(char *str) {
 	int i;
-	int count_optbl = sizeof(optbl) / sizeof(struct opcode_t); // 39
+	int count = sizeof(optbl) / sizeof(struct opcode_t);
 
-	for (i = 0; i < count_optbl; ++i) {
-		if (strcmp(target, optbl[i].op) == 0) {
+	if (*str == '+')
+		return is_opcode(str + 1);
+
+	for (i = 0; i < count; ++i) {
+		if (strcmp(str, optbl[i].op) == 0) {
+			return optbl[i].n_o;
+		}
+	}
+	return -1;
+}
+
+char *nonobj_optbl[6] = {
+	"START", "BASE", "RESW", "RESB", "END",
+};
+int is_nonobj(char *str) {
+	int i;
+	int count = 5;
+
+	for (i = 0; i < count; ++i) {
+		if (strcmp(str, nonobj_optbl[i]) == 0) {
 			return 1;
 		}
 	}
 	return 0;
 }
 
-int parse_line(char *str) {
+// return value
+//  1: normal statement line
+//  2: base
+//  3: end
+/// 4: commandline
+int parse_line(char *str, struct statement_t *sta) {
+	const char s[2] = " \t";
+	char *token;
+	int flag = 1;
 
-	;
+	memset(sta, 0, sizeof(struct statement_t));
+
+	// first part
+	token = strtok(str, s);
+	if (strcmp(token, ".") == 0) {
+		return 4;
+	} else {
+		// if not both base, end it is loc
+		if (strcmp(token, "BASE") && strcmp(token, "END")) {
+			strcpy(sta->loc, token); // loc
+			token = strtok(NULL, s);
+			if ((flag = is_opcode(token)) == -1) {
+				strcpy(sta->symbol, token); // symbol
+				token = strtok(NULL, s);
+			}
+		}
+		strcpy(sta->opcode, token); // opcode
+
+		if (flag > 0) {
+			flag = is_nonobj(token);
+			token = strtok(NULL, s);
+			strcpy(sta->operand, token); // operand
+			if (flag == 0) {
+				token = strtok(NULL, s);
+				strcpy(sta->objcode, token); // objcode
+			}
+		}
+	}
+
+	return 0;
 }
 
 void pass2() {
-	parse_line("0000  COPY    START   0");
-	parse_line("0000  FIRST   ST      RETADR,LX         17202D");
+	FILE *f = fopen("sample.lst", "rb");
+	char buffer[BUFSIZ];
+	int t;
+	struct statement_t state;
+	puts("WTF1");
+	while ((t = fscanf(f, "%[^\n]%*c", buffer) )!= EOF) {
+		parse_line(buffer, &state);
+		printf("%s %s %s %s %s\n",
+			state.loc, state.symbol, state.opcode,
+			state.operand, state.objcode);
+	}
+	printf("%d\n", t);
+	puts("WTF2");
+	fclose(f);
 }
