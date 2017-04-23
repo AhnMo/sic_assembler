@@ -1,7 +1,10 @@
-#ifndef __PASS1__
+#ifndef __PASS2__
 
-#define __PASS1__
+#define __PASS2__
 
-void pass1();
+#include <stdio.h>
+#include <string.h>
+
+void pass2(char *intermediate_filename, char *listing_filename, char *object_filename);
 
 #endif

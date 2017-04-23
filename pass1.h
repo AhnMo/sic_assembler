@@ -2,6 +2,6 @@
 
 #define __PASS1__
 
-void pass1();
+void pass1(char *src_filename, char *intermediate_filename);
 
 #endif
