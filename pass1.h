@@ -15,6 +15,14 @@ struct opcode_t {
 	char *n_f; // the format of operand
 };
 
+struct statement_t {
+	int loc;
+	char symbol[8];
+	char opcode[8];
+	char operand[16];
+	char objcode[16];
+};
+
 void pass1(char *src_filename, char *intermediate_filename);
 
 #endif

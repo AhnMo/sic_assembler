@@ -1,6 +1,6 @@
 #include "pass1.h"
 
-#define OPTAB_HASH 1		//
+#define OPTAB_HASH 1		// remove or comment this line make disable ht
 
 struct opcode_t optab[] = {
 	{"ADD",		3, "18", 1, "m"},
@@ -75,15 +75,109 @@ void init_optab() {
 }
 #endif
 
-void pass1(char *src_filename, char *intermediate_filename) {
+struct opcode_t *get_instruction_info(char *str) {
+	if (*str == '+') return get_instruction_info(str + 1);
 #ifdef OPTAB_HASH
-	struct opcode_t *t;
+	return (struct opcode_t *)ht_get(ht_optab, str);
+#else
+	int i, size = sizeof(optab) / sizeof(struct opcode_t);
+	for (i = 0; i < size; ++i) {
+		if (strcmp(str, optab[i].op) == 0) {
+			return optab + i;
+		}
+	}
+	return NULL;
+#endif
+}
 
-	init_optab();
+int is_instruction(char *str) {
+	return get_instruction_info(str) != NULL;
+}
+
+char *directive[] = {"START", "END", "BYTE", "WORD", "RESB", "RESW", "BASE"};
+int is_directive(char *str) {
+	int i, size = sizeof(directive) / sizeof(char *);
 
 	for (i = 0; i < size; ++i) {
-		t = ht_get(ht_optab, optab[i].op);
-		printf("%s %d %s\n", t->op, t->format, t->code);
+		if (strcmp(str, directive[i]) == 0) {
+			return 1;
+		}
 	}
+	return 0;
+}
+
+int parse_line(char *str, struct statement_t *sta) {
+	char s[] = " \t";
+	char *token;
+	int flag;
+	struct opcode_t *op;
+
+	memset(sta, 0, sizeof(struct statement_t));
+
+	token = strtok(str, s);
+	if (*token == '.') {
+		return 1; // is comment
+	}
+
+	if (is_instruction(token) == 0 && is_directive(token) == 0) {
+		strcpy(sta->symbol, token);
+		token = strtok(NULL, s);
+	}
+
+	strcpy(sta->opcode, token);
+
+	if (is_directive(token) || (op = get_instruction_info(token)) != NULL && op->n_o > 0) {
+		token = strtok(NULL, s);
+		strcpy(sta->operand, token);
+	}
+
+	return 0;
+}
+
+void hex_to_int(char *h, int *i) { sscanf (h, "%x",  i); }
+void int_to_hex(int *i, char *h) { sprintf(h, "%x", *i); }
+
+void pass1(char *src_filename, char *intermediate_filename) {
+	FILE *src_fp, *intermediate_fp;
+	char buff[BUFSIZ];
+	int start_addr, LOCCTR;
+
+	struct statement_t statement;
+	int is_comment;
+
+#ifdef OPTAB_HASH
+	init_optab();
 #endif
+
+	src_fp 			= (FILE *) fopen(src_filename,			"rb");
+	intermediate_fp	= (FILE *) fopen(intermediate_filename, "wb");
+
+#define READ_NEXT_INPUT_LINE {\
+	fscanf(src_fp, "%[^\n]%*c", buff);\
+	parse_line(buff, &statement);\
+}
+
+	READ_NEXT_INPUT_LINE; // read first line input
+
+	if (strcmp(statement.opcode, "START") == 0) {
+		hex_to_int(statement.operand, &start_addr);	// save #[OPERAND] as starting address
+		LOCCTR = start_addr;	// initialize LOCCTR to starting address
+		fprintf(intermediate_fp, "%d\n", start_addr); // write line to intermediate file
+		READ_NEXT_INPUT_LINE;	// read next input line
+	} else {
+		LOCCTR = 0;
+	}
+
+	do {
+		if (!is_comment) {
+			printf("%s/%s/%s\n", statement.symbol, statement.opcode, statement.operand);
+		}
+		READ_NEXT_INPUT_LINE;	// read next input line
+	} while (strcmp(statement.opcode, "END") != 0);
+
+	fprintf(intermediate_fp, "???"); // write last line to intermediate file
+	fprintf(intermediate_fp, "%d\n", LOCCTR - start_addr); // save (LOCCTR - starting address) as program length
+
+	fclose(src_fp);
+	fclose(intermediate_fp);
 }
