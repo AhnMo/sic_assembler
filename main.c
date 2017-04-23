@@ -3,6 +3,6 @@
 
 int main() {
 	pass1();
-	pass2();	
+	pass2();
 	return 0;
 }
