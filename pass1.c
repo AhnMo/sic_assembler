@@ -94,9 +94,63 @@ int is_instruction(char *str) {
 	return get_instruction_info(str) != NULL;
 }
 
-char *directive[] = {"START", "END", "BYTE", "WORD", "RESB", "RESW", "BASE"};
+int find_flag(char* str) { // Determine whether string's first character is flag or not
+	int flag;
+
+	if(str[0]=='+')
+		flag=1;    // 1 if + 
+	if(str[0]=='#')
+		flag=2;    // 2 if #
+	if(str[0]=='@')
+		flag=3;    // 3 if @
+	else
+		flag=0;
+
+	return flag;
+}
+
+int is_float(char* str) {   // if '.' appears in str, returns 1. Else 0.
+	int i, ctr=0, len;
+
+	len=strlen(str);
+
+	if(find_flag(str)!=0)
+		ctr=1;
+
+	for(i=0 ; i<len ; i++) {
+		if(str[ctr]=='.')
+			return 1;
+		ctr++;
+	}
+	return 0;   
+}
+
+int BYTE_length(char* str) {  //find length of BYTE operand
+	int inlen, outlen;
+	char buffer[10];
+	
+	inlen=strlen(str);
+
+	strcpy(buffer, str);
+	if(buffer[0]=='C' || buffer[0]=='c' && buffer[1]=='\'') {
+		for(outlen=2 ; outlen<inlen ; outlen++) {
+			if(buffer[outlen]=='\'') {
+				outlen = outlen-2;
+				break;
+			}
+		}
+	}
+
+	if(buffer[0]=='X' || buffer[0]=='x' && buffer[1] =='\'')
+		outlen=1;
+
+	return outlen;
+}
+
+char *directive[] = {"START", "END", "BYTE", "WORD", "RESB", "RESW", "BASE"} ;
+
 int is_directive(char *str) {
-	int i, size = sizeof(directive) / sizeof(char *);
+	int i, size = sizeof(directive) / sizeof(char *) ;
 
 	for (i = 0; i < size; ++i) {
 		if (strcmp(str, directive[i]) == 0) {
@@ -167,10 +221,20 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 	} else {
 		LOCCTR = 0;
 	}
-
+	//"BYTE", "WORD", "RESB", "RESW", "BASE"
 	do {
 		if (!is_comment) {
 			printf("%s/%s/%s\n", statement.symbol, statement.opcode, statement.operand);
+			if(statement.opcode=="BYTE") {
+				if(is_float(statement.operand)==1)
+					LOCCTR = LOCCTR+6;
+				else
+					LOCCTR = LOCCTR+BYTE_length(statement.operand);
+				fprintf(intermediate_fp, "%s\t%s\t%d\t", statement.opcode, statement.symbol, LOCCTR);   // directive label LOCCTR
+			}
+			if(statement.opcode=="WORD")
+			if(statement.opcode=="RESW")
+			if(statement.opcode=="BASE")
 		}
 		READ_NEXT_INPUT_LINE;	// read next input line
 	} while (strcmp(statement.opcode, "END") != 0);
