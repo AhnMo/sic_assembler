@@ -1,68 +1,8 @@
 #include "pass1.h"
 
-#define OPTAB_HASH 1		// remove or comment this line make disable ht
+#define OPTAB_HASH	1		// remove or comment this line make disable ht
 
-struct opcode_t optab[] = {
-	{"ADD",		3, "18", 1, "m"},
-	{"ADD",		3, "58", 1, "m"},	// XF
-	{"ADDR",	2, "90", 2, "rr"},	// X
-	{"AND",		3, "40", 1, "m"},
-	{"CLEAR",	2, "B4", 1, "r"},	// X
-	{"COMP",	3, "28", 1, "m"},	//   C
-	{"COMPF",	3, "88", 1, "m"},	// XFC
-	{"COMPR",	2, "A0", 2, "rr"},	// X C
-	{"DIV",		3, "24", 1, "m"},
-	{"DIVF",	3, "64", 1, "m"},	// XF
-	{"DIVR",	2, "9C", 2, "rr"},	// X
-	{"FIX",		1, "C4", 0, NULL},	// XF
-	{"FLOAT",	1, "C0", 0, NULL},	// XF
-	{"HIO",		1, "F4", 0, NULL},	//PX
-	{"J",		3, "3C", 1, "m"},
-	{"JEQ",		3, "30", 1, "m"},
-	{"JGT",		3, "34", 1, "m"},
-	{"JLT",		3, "38", 1, "m"},
-	{"JSUB",	3, "48", 1, "m"},
-	{"LDA",		3, "00", 1, "m"},
-	{"LDB",		3, "68", 1, "m"},	// X
-	{"LDCH",	3, "50", 1, "m"},
-	{"LDF",		3, "70", 1, "m"},	// XF
-	{"LDL",		3, "08", 1, "m"},
-	{"LDS",		3, "6C", 1, "m"},	// X
-	{"LDT",		3, "74", 1, "m"},	// X
-	{"LDX",		3, "04", 1, "m"},
-	{"LPS",		3, "D0", 1, "m"},	//PX
-	{"MUL",		3, "20", 1, "m"},
-	{"MULF",	3, "60", 1, "m"},	// XF
-	{"MULR",	2, "98", 2, "rr"},	// X
-	{"NORM",	1, "C8", 0, NULL},	// XF
-	{"OR",		3, "44", 1, "m"},
-	{"RD",		3, "D8", 1, "m"},	//P
-	{"RMO",		2, "AC", 2, "rr"},	// X
-	{"RSUB", 	3, "4C", 0, NULL},
-	{"SHIFTL",	2, "A4", 2, "rn"},	// X
-	{"SHIFTR",	2, "A8", 2, "rn"},	// X
-	{"SIO",		1, "F0", 0, NULL},	//PX
-	{"SKK",		3, "EC", 1, "m"},	//PX
-	{"STA",		3, "0C", 1, "m"},
-	{"STB",		3, "78", 1, "m"},	// X
-	{"STCH",	3, "54", 1, "m"},
-	{"STF",		3, "80", 1, "m"},	// XF
-	{"STI",		3, "D4", 1, "m"},	//PX
-	{"STL",		3, "14", 1, "m"},
-	{"STS",		3, "7C", 1, "m"},	// X
-	{"STSW",	3, "E8", 1, "m"},	//P
-	{"STT",		3, "84", 1, "m"},	// X
-	{"STX",		3, "10", 1, "m"},
-	{"SUB",		3, "1C", 1, "m"},
-	{"SUBF",	3, "5C", 1, "m"},	// XF
-	{"SUBR",	2, "94", 2, "rr"},	// X
-	{"SVC",		2, "B0", 1, "n"},	// X
-	{"TD",		3, "E0", 1, "m"},	//P  C
-	{"TIO",		3, "2C", 1, "m"},	//PX C
-	{"TIX",		3, "2C", 1, "m"},	//   C
-	{"TIXR",	2, "B8", 1, "r"},	// X C
-	{"WD",		3, "DC", 1, "m"},	//P
-};
+#define WORD_SIZE	3
 
 #ifdef OPTAB_HASH
 hashtable_t *ht_optab;
@@ -126,24 +66,82 @@ int parse_line(char *str, struct statement_t *sta) {
 
 	strcpy(sta->opcode, token);
 
-	if (is_directive(token) || (op = get_instruction_info(token)) != NULL && op->n_o > 0) {
+	if (*token == '+') sta->extended = 1;
+
+	if (is_directive(token) || ((op = get_instruction_info(token)) != NULL && op->n_o > 0)) {
 		token = strtok(NULL, s);
 		strcpy(sta->operand, token);
 	}
-
 	return 0;
+}
+
+int get_operator_length(char *str) {
+	struct opcode_t *op = get_instruction_info(str);
+	int ret = 0;
+	switch(op->format) {
+		case 1:	ret += 1; break;
+		case 2:	ret += 2; break;
+		case 3:
+			ret += 3;
+			if (*str == '+')
+				ret += 1;
+		break;
+	}
+
+	return ret;
+}
+
+int get_operand_length(char *str) {
+	int len = strlen(str);
+	if (str[1] == '\'' && str[len - 1] == '\'') {
+		if (str[0] == 'C' || str[0] == 'c') {
+			return len - 3;
+		} else if (str[0] == 'X' || str[0] == 'x') {
+			return (len - 3) / 2;
+		} else {
+			// error... not C or X
+			return -1;
+		}
+	} else {
+		// it is errror, illegal operand length
+		return -1;
+	}
 }
 
 void hex_to_int(char *h, int *i) { sscanf (h, "%x",  i); }
 void int_to_hex(int *i, char *h) { sprintf(h, "%x", *i); }
+void str_to_int(char *h, int *i) { sscanf (h, "%d",  i); }
+void int_to_str(int *i, char *h) { sprintf(h, "%d", *i); }
+
+struct symbol_t {
+	char *symbol;
+	int locctr;
+};
+
+char *symbol_count;
+char *symbol_list[0x1000];
+hashtable_t *ht_symtab;
+void init_symtab() {
+	ht_symtab = ht_create(0x1000);
+	symbol_count = 0;
+}
+
+insert_symtab(char *symbol, int locctr) {
+
+}
+struct symbol_t *get_symtab_by_idx(int idx) {
+
+}
 
 void pass1(char *src_filename, char *intermediate_filename, char *symbol_filename) {
 	FILE *src_fp, *intermediate_fp;
 	char buff[BUFSIZ];
-	int start_addr, LOCCTR;
+	int start_addr, LOCCTR, old_LOCCTR;
 
 	struct statement_t statement;
 	int is_comment;
+	struct opcode_t *op;
+	int size;
 
 #ifdef OPTAB_HASH
 	init_optab();
@@ -154,7 +152,12 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 
 #define READ_NEXT_INPUT_LINE {\
 	fscanf(src_fp, "%[^\n]%*c", buff);\
-	parse_line(buff, &statement);\
+	is_comment = parse_line(buff, &statement);\
+}
+
+#define WRITE_LINE_TO_INTERMEDIATE_FILE(s) {\
+	fprintf(intermediate_fp, "%04x\t%s\t%s\t%s\n",\
+	s.loc, s.symbol, s.opcode, s.operand);\
 }
 
 	READ_NEXT_INPUT_LINE; // read first line input
@@ -162,20 +165,45 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 	if (strcmp(statement.opcode, "START") == 0) {
 		hex_to_int(statement.operand, &start_addr);	// save #[OPERAND] as starting address
 		LOCCTR = start_addr;	// initialize LOCCTR to starting address
-		fprintf(intermediate_fp, "%d\n", start_addr); // write line to intermediate file
+		statement.loc = LOCCTR;
+		WRITE_LINE_TO_INTERMEDIATE_FILE(statement);
 		READ_NEXT_INPUT_LINE;	// read next input line
 	} else {
 		LOCCTR = 0;
 	}
 
-	do {
-		if (!is_comment) {
-			printf("%s/%s/%s\n", statement.symbol, statement.opcode, statement.operand);
+	while (strcmp(statement.opcode, "END") != 0) {
+		if (is_comment) {
+			//printf("%s/%s/%s\n", statement.symbol, statement.opcode, statement.operand);
+		} else {
+			statement.loc = LOCCTR;
+			if (statement.symbol != NULL) {
+
+			}
+
+			if (is_instruction(statement.opcode)) {	// found
+				LOCCTR += get_operator_length(statement.opcode);
+			} else if (strcmp(statement.opcode, "WORD") == 0) {
+				LOCCTR += WORD_SIZE;
+			} else if (strcmp(statement.opcode, "RESW") == 0) {
+				str_to_int(statement.operand, &size);
+				LOCCTR += WORD_SIZE * size;
+			} else if (strcmp(statement.opcode, "RESB") == 0) {
+				str_to_int(statement.operand, &size);
+				LOCCTR += size;
+			} else if (strcmp(statement.opcode, "BYTE") == 0) {
+				LOCCTR += get_operand_length(statement.operand);
+			} else {
+				fprintf(stderr, "invalid operation code: %s\n", statement.opcode);
+				exit(1);
+			}
+			WRITE_LINE_TO_INTERMEDIATE_FILE(statement);
 		}
 		READ_NEXT_INPUT_LINE;	// read next input line
-	} while (strcmp(statement.opcode, "END") != 0);
+	}
+	statement.loc = LOCCTR;	// for END
+	WRITE_LINE_TO_INTERMEDIATE_FILE(statement);
 
-	fprintf(intermediate_fp, "???"); // write last line to intermediate file
 	fprintf(intermediate_fp, "%d\n", LOCCTR - start_addr); // save (LOCCTR - starting address) as program length
 
 	fclose(src_fp);

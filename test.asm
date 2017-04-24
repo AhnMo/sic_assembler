@@ -1,7 +1,7 @@
-COPY    START   1000
+COPY    START   0
 FIRST   STX     RETADR
         LDB    #LENGTH
-        BASE    LENGTH
+.        BASE    LENGTH
 CLOOP  +JSUB    RDREC
         LDA     LENGTH
         COMP   #0
@@ -13,7 +13,7 @@ ENDFIL  LDA     EOF
         LDA    #3
         STA     LENGTH
        +JSUB    WRREC
-        J       @RETADR
+        J      @RETADR
 EOF     BYTE    C'EOF'
 RETADR  RESW    1
 LENGTH  RESW    1
