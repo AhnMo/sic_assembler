@@ -19,7 +19,7 @@ struct opcode_t {
 
 struct opcode_t optab[] = {
 	{"ADD",		3, "18", 1, "m"},
-	{"ADD",		3, "58", 1, "m"},	// XF
+	{"ADDF",	3, "58", 1, "m"},	// XF
 	{"ADDR",	2, "90", 2, "rr"},	// X
 	{"AND",		3, "40", 1, "m"},
 	{"CLEAR",	2, "B4", 1, "r"},	// X
