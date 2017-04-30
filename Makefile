@@ -5,7 +5,10 @@ CFLAGS:=
 OBJS:=main.o \
 pass1.o \
 pass2.o \
-hash.o
+hash.o \
+util.o \
+opcode.o
+
 
 TARGET:=sic_asm.out
 

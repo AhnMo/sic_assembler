@@ -1,3 +1,4 @@
+#include <string.h>
 #include "hash.h"
 
 hashtable_t *ht_create(int size) {
@@ -13,7 +14,7 @@ hashtable_t *ht_create(int size) {
 	if ((hashtable->table = malloc(sizeof(entry_t *) * size)) == NULL) {
 		return NULL;
 	}
-	
+
 	for (i = 0; i < size; ++i) { hashtable->table[i] = NULL; }
 
 	hashtable->size = size;

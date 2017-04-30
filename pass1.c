@@ -1,52 +1,16 @@
-#include "pass1.h"
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
-#define OPTAB_HASH	1		// remove or comment this line make disable ht
+#include "opcode.h"
+#include "hash.h"
+#include "util.h"
+
+#include "pass1.h"
+#include "statement.h"
 
 #define WORD_SIZE	3
-
-#ifdef OPTAB_HASH
-hashtable_t *ht_optab;
-void init_optab() {
-	int i, size = sizeof(optab) / sizeof(struct opcode_t);
-	ht_optab = ht_create(0x1000);
-	for (i = 0; i < size; ++i) {
-		ht_set(ht_optab, optab[i].op, (void *) (optab + i));
-	}
-}
-#endif
-
-struct opcode_t *get_instruction_info(char *str) {
-	if (*str == '+') return get_instruction_info(str + 1);
-#ifdef OPTAB_HASH
-	return (struct opcode_t *)ht_get(ht_optab, str);
-#else
-	int i, size = sizeof(optab) / sizeof(struct opcode_t);
-	for (i = 0; i < size; ++i) {
-		if (strcmp(str, optab[i].op) == 0) {
-			return optab + i;
-		}
-	}
-	return NULL;
-#endif
-}
-
-int is_instruction(char *str) {
-	return get_instruction_info(str) != NULL;
-}
-
-char *directive[] = {"START", "END", "BYTE", "WORD", "RESB", "RESW", "BASE"};
-int is_directive(char *str) {
-	int i, size = sizeof(directive) / sizeof(char *);
-
-	for (i = 0; i < size; ++i) {
-		if (strcmp(str, directive[i]) == 0) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
-int parse_line(char *str, struct statement_t *sta) {
+int pass1_parse_line(char *str, struct statement_t *sta) {
 	char s[] = " \t";
 	char *token;
 	int flag;
@@ -108,17 +72,12 @@ int get_operand_length(char *str) {
 	}
 }
 
-void hex_to_int(char *h, int *i) { sscanf (h, "%x",  i); }
-void int_to_hex(int *i, char *h) { sprintf(h, "%x", *i); }
-void str_to_int(char *h, int *i) { sscanf (h, "%d",  i); }
-void int_to_str(int *i, char *h) { sprintf(h, "%d", *i); }
-
 struct symbol_t {
 	char *symbol;
 	int locctr;
 };
 
-char *symbol_count;
+int symbol_count;
 char *symbol_list[0x1000];
 hashtable_t *ht_symtab;
 void init_symtab() {
@@ -126,15 +85,40 @@ void init_symtab() {
 	symbol_count = 0;
 }
 
-insert_symtab(char *symbol, int locctr) {
+int insert_symtab(struct statement_t *st) {
+	struct symbol_t *s = (struct symbol_t *) malloc(sizeof(struct symbol_t));
+	s->symbol = symbol_list[symbol_count++] = strdup(st->symbol);
+	s->locctr = st->loc;
 
+	ht_set(ht_symtab, st->symbol, (void *)s);
+
+	return 1;
 }
 struct symbol_t *get_symtab_by_idx(int idx) {
+	return (struct symbol_t *) ht_get(ht_symtab, symbol_list[idx]);
+}
+struct symbol_t *get_symtab_by_name(char *name) {
+	return (struct symbol_t *) ht_get(ht_symtab, name);
+}
 
+void clear_symtab() {
+	int i;
+	struct symbol_t *s;
+
+	for (i = 0; i < symbol_count; ++i) {
+		s = (struct symbol_t *) ht_get(ht_symtab, symbol_list[i]);
+		printf("%s %d\n", s->symbol, s->locctr);
+		free(s);
+		free(symbol_list[i]);
+	}
+}
+
+int pass1_unlink_files(char *intermediate_filename, char *symbol_filename) {
+	return unlink(intermediate_filename) | unlink(symbol_filename);
 }
 
 void pass1(char *src_filename, char *intermediate_filename, char *symbol_filename) {
-	FILE *src_fp, *intermediate_fp;
+	FILE *src_fp, *intermediate_fp, *symbol_fp;
 	char buff[BUFSIZ];
 	int start_addr, LOCCTR, old_LOCCTR;
 
@@ -143,21 +127,26 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 	struct opcode_t *op;
 	int size;
 
-#ifdef OPTAB_HASH
-	init_optab();
-#endif
+	
+	init_symtab();
 
 	src_fp 			= (FILE *) fopen(src_filename,			"rb");
 	intermediate_fp	= (FILE *) fopen(intermediate_filename, "wb");
+	symbol_fp		= (FILE *) fopen(symbol_filename,		"wb");
 
 #define READ_NEXT_INPUT_LINE {\
 	fscanf(src_fp, "%[^\n]%*c", buff);\
-	is_comment = parse_line(buff, &statement);\
+	is_comment = pass1_parse_line(buff, &statement);\
 }
 
 #define WRITE_LINE_TO_INTERMEDIATE_FILE(s) {\
-	fprintf(intermediate_fp, "%04x\t%s\t%s\t%s\n",\
+	fprintf(intermediate_fp, "%04x\t%-10s\t%-10s\t%-10s\n",\
 	s.loc, s.symbol, s.opcode, s.operand);\
+}
+
+#define WRITE_LINE_TO_SYMBOL_TABLE_FILE(s) {\
+	fprintf(symbol_fp, "%-10s\t%04x\n",\
+	s.symbol, s.loc);\
 }
 
 	READ_NEXT_INPUT_LINE; // read first line input
@@ -177,8 +166,15 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 			//printf("%s/%s/%s\n", statement.symbol, statement.opcode, statement.operand);
 		} else {
 			statement.loc = LOCCTR;
-			if (statement.symbol != NULL) {
-
+			if (*statement.symbol != (int) NULL) {
+				if (get_symtab_by_name(statement.symbol) != NULL) {
+					fprintf(stderr, "duplicate symbol: %s\n", statement.symbol);
+					pass1_unlink_files(intermediate_filename, symbol_filename);
+					exit(1);
+				} else {
+					insert_symtab(&statement);
+					WRITE_LINE_TO_SYMBOL_TABLE_FILE(statement);
+				}
 			}
 
 			if (is_instruction(statement.opcode)) {	// found
@@ -193,8 +189,11 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 				LOCCTR += size;
 			} else if (strcmp(statement.opcode, "BYTE") == 0) {
 				LOCCTR += get_operand_length(statement.operand);
+			} else if (is_directive(statement.opcode)) {
+
 			} else {
 				fprintf(stderr, "invalid operation code: %s\n", statement.opcode);
+				pass1_unlink_files(intermediate_filename, symbol_filename);
 				exit(1);
 			}
 			WRITE_LINE_TO_INTERMEDIATE_FILE(statement);
@@ -208,4 +207,7 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 
 	fclose(src_fp);
 	fclose(intermediate_fp);
+	fclose(symbol_fp);
+
+	clear_symtab();
 }
