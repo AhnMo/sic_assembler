@@ -31,7 +31,7 @@ int pass1_parse_line(char *str, struct statement_t *sta) {
 
 	strcpy(sta->opcode, token);
 
-	if (*token == '+') sta->extended = 1;
+	if (*token == '+') sta->flag &= 1;
 
 	if (is_directive(token) || ((op = get_instruction_info(token)) != NULL && op->n_o > 0)) {
 		token = strtok(NULL, s);
@@ -88,7 +88,7 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 	struct statement_t statement;
 	int is_comment;
 	struct opcode_t *op;
-	int size;
+	int size, t;
 
 	init_symtab();
 
@@ -102,8 +102,8 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 }
 
 #define WRITE_LINE_TO_INTERMEDIATE_FILE(s) {\
-	fprintf(intermediate_fp, "%04x\t%-10s\t%-10s\t%-10s\n",\
-	s.loc, s.symbol, s.opcode, s.operand);\
+	fprintf(intermediate_fp, "%04x\t%-10s\t%-10s\t%-10s\t%04x\t%04x\n",\
+	s.loc, s.symbol, s.opcode, s.operand, s.size, s.flag);\
 }
 
 #define WRITE_LINE_TO_SYMBOL_TABLE_FILE(s) {\
@@ -142,22 +142,24 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 			}
 
 			if (is_instruction(statement.opcode)) {	// found
-				LOCCTR += get_operator_length(statement.opcode);
+				size = get_operator_length(statement.opcode);
 			} else if (strcmp(statement.opcode, "WORD") == 0) {
-				LOCCTR += WORD_SIZE;
+				size = WORD_SIZE;
 			} else if (strcmp(statement.opcode, "RESW") == 0) {
-				str_to_int(statement.operand, &size);
-				LOCCTR += WORD_SIZE * size;
+				str_to_int(statement.operand, &t);
+				size = WORD_SIZE * t;
 			} else if (strcmp(statement.opcode, "RESB") == 0) {
-				str_to_int(statement.operand, &size);
-				LOCCTR += size;
+				str_to_int(statement.operand, &t);
+				size = t;
 			} else if (strcmp(statement.opcode, "BYTE") == 0) {
-				LOCCTR += get_operand_length(statement.operand);
+				size = get_operand_length(statement.operand);
 			} else {
 				fprintf(stderr, "invalid operation code: %s\n", statement.opcode);
 				pass1_unlink_files(intermediate_filename, symbol_filename);
 				exit(1);
 			}
+			LOCCTR += size;
+			statement.size = size;
 			if (strcmp(statement.operand, "") == 0) {
 				strcpy(statement.operand, "-");
 			}

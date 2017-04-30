@@ -7,7 +7,8 @@ struct statement_t {
 	char opcode[8];
 	char operand[16];
 	char objcode[16];
-	int extended;
+	int flag;
+	int size;
 };
 
 
