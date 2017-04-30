@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Usage: %s [source filename] [output filename]\n", argv[0]);
 		return 1;
 	}
-	puts("[*] Initialize operator table for both pass1 and pass2");
+	// Initialize operator table for pass1 and pass2
 	init_optbl();
 
 	puts("======================================");
