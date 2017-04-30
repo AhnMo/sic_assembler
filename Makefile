@@ -7,7 +7,8 @@ pass1.o \
 pass2.o \
 hash.o \
 util.o \
-opcode.o
+opcode.o \
+symbol.o
 
 
 TARGET:=sic_asm.out

@@ -7,7 +7,7 @@
 struct opcode_t {
 	char *op;
 	int format;
-	char *code;
+	int code;
 	int n_o; // the number of operand
 	char *n_f; // the format of operand
 };

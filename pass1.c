@@ -8,6 +8,7 @@
 
 #include "pass1.h"
 #include "statement.h"
+#include "symbol.h"
 
 #define WORD_SIZE	3
 int pass1_parse_line(char *str, struct statement_t *sta) {
@@ -72,46 +73,8 @@ int get_operand_length(char *str) {
 	}
 }
 
-struct symbol_t {
-	char *symbol;
-	int locctr;
-};
 
-int symbol_count;
-char *symbol_list[0x1000];
-hashtable_t *ht_symtab;
-void init_symtab() {
-	ht_symtab = ht_create(0x1000);
-	symbol_count = 0;
-}
 
-int insert_symtab(struct statement_t *st) {
-	struct symbol_t *s = (struct symbol_t *) malloc(sizeof(struct symbol_t));
-	s->symbol = symbol_list[symbol_count++] = strdup(st->symbol);
-	s->locctr = st->loc;
-
-	ht_set(ht_symtab, st->symbol, (void *)s);
-
-	return 1;
-}
-struct symbol_t *get_symtab_by_idx(int idx) {
-	return (struct symbol_t *) ht_get(ht_symtab, symbol_list[idx]);
-}
-struct symbol_t *get_symtab_by_name(char *name) {
-	return (struct symbol_t *) ht_get(ht_symtab, name);
-}
-
-void clear_symtab() {
-	int i;
-	struct symbol_t *s;
-
-	for (i = 0; i < symbol_count; ++i) {
-		s = (struct symbol_t *) ht_get(ht_symtab, symbol_list[i]);
-		printf("%s %d\n", s->symbol, s->locctr);
-		free(s);
-		free(symbol_list[i]);
-	}
-}
 
 int pass1_unlink_files(char *intermediate_filename, char *symbol_filename) {
 	return unlink(intermediate_filename) | unlink(symbol_filename);
@@ -127,7 +90,6 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 	struct opcode_t *op;
 	int size;
 
-	
 	init_symtab();
 
 	src_fp 			= (FILE *) fopen(src_filename,			"rb");
@@ -172,9 +134,11 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 					pass1_unlink_files(intermediate_filename, symbol_filename);
 					exit(1);
 				} else {
-					insert_symtab(&statement);
+					insert_symtab(statement.symbol, statement.loc);
 					WRITE_LINE_TO_SYMBOL_TABLE_FILE(statement);
 				}
+			} else {
+				strcpy(statement.symbol, "-");
 			}
 
 			if (is_instruction(statement.opcode)) {	// found
@@ -189,18 +153,20 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 				LOCCTR += size;
 			} else if (strcmp(statement.opcode, "BYTE") == 0) {
 				LOCCTR += get_operand_length(statement.operand);
-			} else if (is_directive(statement.opcode)) {
-
 			} else {
 				fprintf(stderr, "invalid operation code: %s\n", statement.opcode);
 				pass1_unlink_files(intermediate_filename, symbol_filename);
 				exit(1);
+			}
+			if (strcmp(statement.operand, "") == 0) {
+				strcpy(statement.operand, "-");
 			}
 			WRITE_LINE_TO_INTERMEDIATE_FILE(statement);
 		}
 		READ_NEXT_INPUT_LINE;	// read next input line
 	}
 	statement.loc = LOCCTR;	// for END
+	strcpy(statement.symbol, "-");
 	WRITE_LINE_TO_INTERMEDIATE_FILE(statement);
 
 	fprintf(intermediate_fp, "%d\n", LOCCTR - start_addr); // save (LOCCTR - starting address) as program length

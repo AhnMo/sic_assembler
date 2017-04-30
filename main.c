@@ -2,6 +2,7 @@
 #include "pass1.h"
 #include "pass2.h"
 #include "opcode.h"
+#include "symbol.h"
 
 #define FILENAME_INTERMEDIATE	"intermediate.txt"
 #define FILENAME_SYMBOL			"symbol.txt"
