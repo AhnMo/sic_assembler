@@ -5,9 +5,13 @@ CFLAGS:=
 OBJS:=main.o \
 pass1.o \
 pass2.o \
-hash.o
+hash.o \
+util.o \
+opcode.o \
+symbol.o
 
-TARGET:=sic_asm.out
+
+TARGET:=sic_assembler
 
 all: $(TARGET)
 
