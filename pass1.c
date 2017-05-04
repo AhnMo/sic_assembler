@@ -5,10 +5,10 @@
 #include <unistd.h>
 
 #include "opcode.h"
-#include "hash.h"
 #include "util.h"
 #include "statement.h"
 #include "symbol.h"
+//#include "hash.h"
 
 #define WORD_SIZE	3
 
@@ -49,13 +49,14 @@ int get_operator_length(char *str) {
 	switch(op->format) {
 		case 1:	return 1;
 		case 2:	return 2;
-		case 3:
-			if (*str == '+')
-				return 4;
-			return 3;
+		case 3: return 3;
 		default:
 			return 0;
 	}
+}
+
+int is_extended(char *str) {
+	return *str == '+';
 }
 
 int get_operand_length(char *str) {
@@ -89,11 +90,12 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 	struct opcode_t *op;
 	int size, t;
 
-	init_symtab();
-
 	src_fp 			= (FILE *) fopen(src_filename,			"rb");
+	FILE_FAIL_CHECK(src_fp);
 	intermediate_fp	= (FILE *) fopen(intermediate_filename, "wb");
+	FILE_FAIL_CHECK(intermediate_fp);
 	symbol_fp		= (FILE *) fopen(symbol_filename,		"wb");
+	FILE_FAIL_CHECK(symbol_fp);
 
 #define READ_NEXT_INPUT_LINE {\
 	fscanf(src_fp, "%[^\n]%*c", buff);\
@@ -101,7 +103,7 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 }
 
 #define WRITE_LINE_TO_INTERMEDIATE_FILE(s) {\
-	fprintf(intermediate_fp, "%04x\t%-10s\t%-10s\t%-10s\t%04x\t%04x\n",\
+	fprintf(intermediate_fp, "%04x\t%-10s\t%-10s\t%-10s\t%02x\t%04x\n",\
 	s.loc, s.symbol, s.opcode, s.operand, s.flag, s.size);\
 }
 
@@ -109,6 +111,8 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 	fprintf(symbol_fp, "%-10s\t%04x\n",\
 	s.symbol, s.loc);\
 }
+
+	init_symtab();
 
 	READ_NEXT_INPUT_LINE; // read first line input
 
@@ -142,30 +146,38 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 			} else {
 				strcpy(statement.symbol, "-");
 			}
+
 #define RSHIFT_STR(a) \
 strcpy(buff, a);\
 strcpy(a, buff + 1);
+
 			if (is_instruction(statement.opcode)) {	// found
 				size = get_operator_length(statement.opcode);
+
+				if (is_extended(statement.opcode)) {
+					size += 1;
+					statement.flag |= 0b10000000;
+					RSHIFT_STR(statement.opcode);
+				}
+
 				switch (statement.operand[0]) {
 					case '#':
-						statement.flag |= 0b10000000;
-						//statement.operand = statement.operand + 1;
+						statement.flag |= 0b01000000;
 						RSHIFT_STR(statement.operand);
 						break;
 					case '@':
-						statement.flag |= 0b01000000;
-						//statement.operand = statement.operand + 1;
+						statement.flag |= 0b00100000;
 						RSHIFT_STR(statement.operand);
 						break;
 				}
+
 #ifdef PASS1_ENABLE_FLOAT
 				if (is_float(statement.operand)) {
-					statement.flag |= 0b00100000;
+					statement.flag |= 0b00001000;
 				} else
 #endif
 				if (is_numeric(statement.operand)) {
-					statement.flag |= 0b00010000;
+					statement.flag |= 0b00000100;
 				}
 			} else if (strcmp(statement.opcode, "WORD") == 0) {
 #ifdef PASS1_ENABLE_FLOAT

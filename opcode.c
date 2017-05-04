@@ -93,3 +93,18 @@ int is_directive(char *str) {
 	}
 	return 0;
 }
+
+struct register_t regtbl[] = {
+	{"A", 0b0000}, {"X", 0b0001}, {"L", 0b0010}, {"B", 0b0011},
+	{"S", 0b0100}, {"T", 0b0101}, {"F", 0b0110}, {"PC", 0b1000}, {"SW", 0b1001}
+};
+
+int get_register_value(char *r) {
+	int i, cnt = sizeof(regtbl) / sizeof(struct register_t);
+	for (i = 0; i < cnt; ++i) {
+		if (strcmp(regtbl[i].reg, r) == 0) {
+			return regtbl[i].value;
+		}
+	}
+	return -1;
+}
