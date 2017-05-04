@@ -24,11 +24,11 @@ int is_float(char *operand) {               //if OPcodeis WORD or BYTE, execute 
 	if(operand[0]=='#' || operand[0]=='+' || operand[0]=='@')
 		i=1;
 	
-	if(operand[i]=='.')
+	if(operand[i]=='.' || operand[len]=='.')
 		return 0;
 
 	for(i ; i < len ; i++) { 
-		if(operand[i]<'0' || operand[i]>'9') {
+		if(operand[i]<'0' || operand[i]>'9' ) {
 			if(operand[i] == '.') {
 				flag++;
 				continue;
