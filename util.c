@@ -16,3 +16,28 @@ int is_numeric(char *s) {
 	}
 	return 1;
 }
+
+//if OPcodeis WORD or BYTE, execute is_float(operand).
+int is_float(char *operand) {
+	int i = 0, len = strlen(operand);
+	int flag = 0;
+
+	if(operand[0] == '#' || operand[0] == '+' || operand[0] == '@')
+		i = 1;
+
+	if(operand[i]=='.')
+		return 0;
+
+	for(i ; i < len ; i++) {
+		if(operand[i]<'0' || operand[i]>'9') {
+			if(operand[i] == '.') {
+				flag++;
+				continue;
+			}
+			else
+				return 0;
+		}
+	}
+	//float -> flag=1, else -> flag=0
+	return (flag == 1) ? 1 : 0;
+}
