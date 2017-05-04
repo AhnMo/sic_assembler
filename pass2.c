@@ -30,7 +30,7 @@ int pass2_parse_line(char *str, struct statement_t *sta) {
 
 	token = strtok(NULL, s);
 	hex_to_int(token, &tmp);
-	sta->flag = flag;
+	sta->flag = tmp;
 
 	token = strtok(NULL, s);
 	hex_to_int(token, &tmp);
@@ -120,19 +120,24 @@ void pass2(char *intermediate_filename, char *symbol_filename, char *listing_fil
 
 	current_text_record_length = 0;
 	while (strcmp(statement.opcode, "END") != 0) {
-		op = get_instruction_info(statement.opcode);
-		if (op) {
-			if (op->n_o > 0) {
-				ptr = strtok(statement.operand, ",");
-				sym = get_symtab_by_name(ptr);
-				if (sym == NULL) {
-					fprintf(stderr, "undefined symbol: %s\n", statement.symbol);
-					pass2_unlink_files(listing_filename, object_filename);
-					exit(1);
-				}
-				operand_addr = sym->locctr;
-				if (strtok(NULL, "\0") != 0) {
-					operand_addr |= 0x8000;
+		printf("%04x\t%-10s\t%-10s\t%04x\t%04x\n", statement.loc, statement.opcode, statement.operand, statement.flag, statement.size);
+		if ((op = get_instruction_info(statement.opcode)) != NULL) {
+			if (op->n_o > 0) { // it is operator that has operand
+				if (statement.flag & 0b00100000 == 0 ||	// is float?
+					statement.flag & 0b00010000 == 0) {	// is numeric?
+
+				} else {
+					ptr = strtok(statement.operand, ",");
+					sym = get_symtab_by_name(ptr);
+					if (sym == NULL) {
+						fprintf(stderr, "undefined symbol: %s\n", statement.symbol);
+						pass2_unlink_files(listing_filename, object_filename);
+						exit(1);
+					}
+					operand_addr = sym->locctr;
+					if (strtok(NULL, "\0") != 0) {
+						operand_addr |= 0x8000;
+					}
 				}
 			} else {
 				operand_addr = 0;
@@ -189,7 +194,7 @@ void pass2(char *intermediate_filename, char *symbol_filename, char *listing_fil
 	fclose(symbol_fp);
 	fclose(listing_fp);
 
-	printf("%d\n", obj_idx);
+	//printf("%d\n", obj_idx);
 	object_fp = fopen(object_filename, "wb");
 	for (i = 0; i < obj_idx; ++i)
 		fprintf(object_fp, "%s\n", obj_code[i]);

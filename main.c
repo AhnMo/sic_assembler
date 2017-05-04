@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
 	pass1(argv[1], FILENAME_INTERMEDIATE, FILENAME_SYMBOL);
 
 	puts("======================================");
-	puts("                PASS 1                ");
+	puts("                PASS 2                ");
 	puts("======================================");
 	pass2(FILENAME_INTERMEDIATE, FILENAME_SYMBOL, FILENAME_LISTING, argv[2]);
 

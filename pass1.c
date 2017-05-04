@@ -11,6 +11,10 @@
 #include "symbol.h"
 
 #define WORD_SIZE	3
+
+#define PASS1_ENABLE_FLOAT
+#define PASS1_ENABLE_BASE
+
 int pass1_parse_line(char *str, struct statement_t *sta) {
 	char s[] = " \t";
 	char *token;
@@ -42,18 +46,16 @@ int pass1_parse_line(char *str, struct statement_t *sta) {
 
 int get_operator_length(char *str) {
 	struct opcode_t *op = get_instruction_info(str);
-	int ret = 0;
 	switch(op->format) {
-		case 1:	ret += 1; break;
-		case 2:	ret += 2; break;
+		case 1:	return 1;
+		case 2:	return 2;
 		case 3:
-			ret += 3;
 			if (*str == '+')
-				ret += 1;
-		break;
+				return 4;
+			return 3;
+		default:
+			return 0;
 	}
-
-	return ret;
 }
 
 int get_operand_length(char *str) {
@@ -72,9 +74,6 @@ int get_operand_length(char *str) {
 		return -1;
 	}
 }
-
-
-
 
 int pass1_unlink_files(char *intermediate_filename, char *symbol_filename) {
 	return unlink(intermediate_filename) | unlink(symbol_filename);
@@ -143,11 +142,42 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 			} else {
 				strcpy(statement.symbol, "-");
 			}
-
+#define RSHIFT_STR(a) \
+strcpy(buff, a);\
+strcpy(a, buff + 1);
 			if (is_instruction(statement.opcode)) {	// found
 				size = get_operator_length(statement.opcode);
+				switch (statement.operand[0]) {
+					case '#':
+						statement.flag |= 0b10000000;
+						//statement.operand = statement.operand + 1;
+						RSHIFT_STR(statement.operand);
+						break;
+					case '@':
+						statement.flag |= 0b01000000;
+						//statement.operand = statement.operand + 1;
+						RSHIFT_STR(statement.operand);
+						break;
+				}
+#ifdef PASS1_ENABLE_FLOAT
+				if (is_float(statement.operand)) {
+					statement.flag |= 0b00100000;
+				} else
+#endif
+				if (is_numeric(statement.operand)) {
+					statement.flag |= 0b00010000;
+				}
 			} else if (strcmp(statement.opcode, "WORD") == 0) {
+#ifdef PASS1_ENABLE_FLOAT
+				if(is_float(statement.operand)) {
+					size = WORD_SIZE * 2;
+					printf("%d %s\n", size, statement.operand);
+				} else {
+					size = WORD_SIZE;
+				}
+#else
 				size = WORD_SIZE;
+#endif
 			} else if (strcmp(statement.opcode, "RESW") == 0) {
 				str_to_int(statement.operand, &t);
 				size = WORD_SIZE * t;
@@ -155,7 +185,21 @@ void pass1(char *src_filename, char *intermediate_filename, char *symbol_filenam
 				str_to_int(statement.operand, &t);
 				size = t;
 			} else if (strcmp(statement.opcode, "BYTE") == 0) {
+#ifdef PASS1_ENABLE_FLOAT
+				if(is_float(statement.operand)) {
+					size = WORD_SIZE * 2;
+					//printf("%d %s\n", size, statement.operand);
+				} else {
+					size = get_operand_length(statement.operand);
+				}
+#else
 				size = get_operand_length(statement.operand);
+#endif
+
+#ifdef PASS1_ENABLE_BASE
+			} else if (strcmp(statement.opcode, "BASE") == 0 || strcmp(statement.opcode, "NOBASE") == 0) {
+				size = 0;
+#endif
 			} else {
 				fprintf(stderr, "invalid operation code: %s\n", statement.opcode);
 				pass1_unlink_files(intermediate_filename, symbol_filename);

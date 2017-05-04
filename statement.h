@@ -11,5 +11,14 @@ struct statement_t {
 	int size;
 };
 
+/*
+about flag
+10000000 - # immediate
+01000000 - @ indirect
+00100000 - float			operand type
+00010000 - numeric			operand type
+
+
+*/
 
 #endif
